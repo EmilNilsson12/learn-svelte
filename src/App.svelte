@@ -2,20 +2,21 @@
 import Users from './components/Users.svelte'
 console.log(Users)
 
-	export let name;
 </script>
 
 <main>
-	<h1>Hello {name}!</h1>
+	<h1>Meet our team!</h1>
 	<Users />
 </main>
 
 <style>
-	main {
+
+main {
 		text-align: center;
-		padding: 1em;
-		max-width: 240px;
-		margin: 0 auto;
+		/* padding: 1em; */
+		/* max-width: 240px; */
+		margin: 0;
+		padding: 0;
 	}
 
 	

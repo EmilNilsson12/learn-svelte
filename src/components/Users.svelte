@@ -1,35 +1,53 @@
 <script>
-import { onMount } from "svelte";
-
-
-export let users = [{name: "janne"}, {name: "jenni"}]
-
-onMount(() => {
-    const fetchUsers = async () => {
-        let returnData = await fetch('http://localhost:3000/users').then(res => res.json()).then(data => data)
-        return returnData
-    }
-
-    users = fetchUsers()
-    console.log(users)
-})
-</script>
-
+    import { onMount } from "svelte";
+    import User from './User.svelte'
+    
+    
+    export let users = [{first_name: "janne"}, {first_name: "jenni"}]
+    
+    onMount(() => {
+            fetch('http://localhost:3000/users')
+            .then(res => res.json())
+            .then(data => {
+                console.log('data: ', data)
+                users = data
+            })
+        })
+    </script>
+    
 <style>
 
+    main {
+        display: grid;
+        grid-template-columns: minmax(100px, 1fr) minmax(auto, 600px) minmax(100px, 1fr);
+        background-color: blueviolet;
+    }
+
+    .my-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-gap: 10px;
+        margin-top: 30px;
+    }  
 </style>
-
-<div>
-    {#each users as user}
-
+    
+<main>
     <div>
-        {user.name}
+        
     </div>
-
-    {:else}
-     <div>
-         Hämtar användare...
-     </div>
-    {/each}
-
-</div>
+    <div class='my-grid'>
+        {#each users as user}
+        <User {user}/>
+        
+        {:else}
+        <div>
+            Hämtar användare...
+        </div>
+        {/each}
+        
+    </div>
+    
+    <div>
+        
+    </div>
+</main>
