@@ -1,8 +1,18 @@
 <script>
 	let count1 = 0;
 	let count2 = 0;
-		let count3 = 0;
-	$: product = count1 * count2 * count3
+    let count3 = 0;
+    let product = 0;
+
+	$: {
+        if(product > 100) {
+            console.log("big number")
+            count1 = 0
+            count2 = 0
+            count3 = 0
+        }
+        product = count1 * count2 * count3
+    }
 
 	function handleClick1() {
 		count1 += 1;
