@@ -3,7 +3,7 @@
     import User from './User.svelte'
     
     
-    export let users = [{first_name: "janne"}, {first_name: "jenni"}]
+    
     
     onMount(() => {
             fetch('http://localhost:3000/users')
@@ -13,7 +13,21 @@
                 users = data
             })
         })
-    </script>
+
+
+    export let users = [
+        {
+            first_name: "janne", 
+            last_name: "kemi"
+        }, 
+        {
+            first_name: "jenni", 
+            last_name: "pulli"
+        }
+    ]
+</script>
+
+
     
 <style>
 

@@ -1,11 +1,12 @@
 <script>
 import Users from './components/Users.svelte'
-console.log(Users)
+import Counter from './components/Counter.svelte'
 
 </script>
 
 <main>
 	<h1>Meet our team!</h1>
+	<Counter />
 	<Users />
 </main>
 
