@@ -374,7 +374,7 @@ var app = (function () {
     			append_dev(div, t3);
 
     			if (!mounted) {
-    				dispose = listen_dev(div, "mousemove", /*handleMousemove*/ ctx[1], false, false, false);
+    				dispose = listen_dev(div, "mousemove", /*mousemove_handler*/ ctx[1], false, false, false);
     				mounted = true;
     			}
     		},
@@ -420,6 +420,7 @@ var app = (function () {
     		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<App> was created with unknown prop '${key}'`);
     	});
 
+    	const mousemove_handler = e => $$invalidate(0, m = { x: e.clientX, y: e.clientY });
     	$$self.$capture_state = () => ({ m, handleMousemove });
 
     	$$self.$inject_state = $$props => {
@@ -430,7 +431,7 @@ var app = (function () {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [m, handleMousemove];
+    	return [m, mousemove_handler];
     }
 
     class App extends SvelteComponentDev {
