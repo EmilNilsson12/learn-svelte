@@ -10,10 +10,11 @@
 
 <ul>
     <!-- open each block -->
-    {#each cats as cat}
+    {#each cats as { id, name }, i}
         <li>
-            <a target="_blank" href="https://www.youtube.com/watch?v={cat.id}">
-                {cat.name}
+            {i + 1}
+            <a target="_blank" href="https://www.youtube.com/watch?v={id}">
+                {name}
             </a>
         </li>
         <!-- close each block -->

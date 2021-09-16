@@ -351,39 +351,48 @@ var app = (function () {
 
     function get_each_context(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[1] = list[i];
+    	child_ctx[1] = list[i].id;
+    	child_ctx[2] = list[i].name;
+    	child_ctx[4] = i;
     	return child_ctx;
     }
 
-    // (13:4) {#each cats as cat}
+    // (13:4) {#each cats as { id, name }
     function create_each_block(ctx) {
     	let li;
-    	let a;
-    	let t0_value = /*cat*/ ctx[1].name + "";
+    	let t0_value = /*i*/ ctx[4] + 1 + "";
     	let t0;
     	let t1;
+    	let a;
+    	let t2_value = /*name*/ ctx[2] + "";
+    	let t2;
+    	let t3;
 
     	const block = {
     		c: function create() {
     			li = element("li");
-    			a = element("a");
     			t0 = text(t0_value);
     			t1 = space();
+    			a = element("a");
+    			t2 = text(t2_value);
+    			t3 = space();
     			attr_dev(a, "target", "_blank");
-    			attr_dev(a, "href", "https://www.youtube.com/watch?v=" + /*cat*/ ctx[1].id);
-    			add_location(a, file$1, 14, 12, 342);
-    			add_location(li, file$1, 13, 8, 324);
+    			attr_dev(a, "href", "https://www.youtube.com/watch?v=" + /*id*/ ctx[1]);
+    			add_location(a, file$1, 15, 12, 375);
+    			add_location(li, file$1, 13, 8, 336);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, li, anchor);
+    			append_dev(li, t0);
+    			append_dev(li, t1);
     			append_dev(li, a);
-    			append_dev(a, t0);
-    			insert_dev(target, t1, anchor);
+    			append_dev(a, t2);
+    			insert_dev(target, t3, anchor);
     		},
     		p: noop,
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(li);
-    			if (detaching) detach_dev(t1);
+    			if (detaching) detach_dev(t3);
     		}
     	};
 
@@ -391,7 +400,7 @@ var app = (function () {
     		block,
     		id: create_each_block.name,
     		type: "each",
-    		source: "(13:4) {#each cats as cat}",
+    		source: "(13:4) {#each cats as { id, name }",
     		ctx
     	});
 
