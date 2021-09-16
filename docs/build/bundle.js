@@ -72,6 +72,16 @@ var app = (function () {
             }
         };
     }
+    // TODO figure out if we still want to support
+    // shorthand events, or if we want to implement
+    // a real bubbling mechanism
+    function bubble(component, event) {
+        const callbacks = component.$$.callbacks[event.type];
+        if (callbacks) {
+            // @ts-ignore
+            callbacks.slice().forEach(fn => fn.call(this, event));
+        }
+    }
 
     const dirty_components = [];
     const binding_callbacks = [];
@@ -430,6 +440,7 @@ var app = (function () {
     	let inner;
     	let current;
     	inner = new Inner({ $$inline: true });
+    	inner.$on("message", /*message_handler*/ ctx[0]);
 
     	const block = {
     		c: function create() {
@@ -477,8 +488,12 @@ var app = (function () {
     		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Outer> was created with unknown prop '${key}'`);
     	});
 
+    	function message_handler(event) {
+    		bubble.call(this, $$self, event);
+    	}
+
     	$$self.$capture_state = () => ({ Inner });
-    	return [];
+    	return [message_handler];
     }
 
     class Outer extends SvelteComponentDev {
