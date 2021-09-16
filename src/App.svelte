@@ -1,21 +1,26 @@
 <script>
-    let m = { x: 0, y: 0 };
-
-    function handleMousemove(event) {
-        console.log(event.clientX);
-        console.log(event.clientY);
-        m.x = event.clientX;
-        m.y = event.clientY;
+    // Alert
+    function handleClick({ target }) {
+        alert('clicked: ' + target.id);
     }
 </script>
 
-<style>
-    div {
-        width: 100%;
-        height: 100vh;
-    }
-</style>
+<div>
+    <h3>With stopPropagation</h3>
+    <button id="outer btn" on:click={handleClick}>
+        Outer button<button
+            id="inner btn"
+            on:click|stopPropagation={handleClick}
+            >Inner button, click to test stopPropagation</button
+        >
+    </button>
+</div>
 
-<div on:mousemove={(e) => (m = { x: e.clientX, y: e.clientY })}>
-    The mouse position is {m.x} x {m.y}
+<div>
+    <h3>Without stopPropagation</h3>
+    <button id="outer btn" on:click={handleClick}>
+        Outer button<button id="inner btn" on:click={handleClick}
+            >Inner button, click to test stopPropagation</button
+        >
+    </button>
 </div>
