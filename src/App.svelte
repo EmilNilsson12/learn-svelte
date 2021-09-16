@@ -1,6 +1,7 @@
 <script>
     import Users from './components/Users.svelte';
     import Counter from './components/Counter.svelte';
+    import Logic from './components/Logic.svelte';
 </script>
 
 <style>
@@ -27,7 +28,6 @@
 </style>
 
 <main>
-    <h1>Meet our team!</h1>
-    <Counter />
-    <Users />
+    <h1>Logic component!</h1>
+    <Logic />
 </main>
