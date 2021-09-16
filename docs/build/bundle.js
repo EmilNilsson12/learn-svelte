@@ -1027,7 +1027,7 @@ var app = (function () {
 
     const file$1 = "src\\components\\Logic.svelte";
 
-    // (11:0) {:else}
+    // (17:0) {:else}
     function create_else_block(ctx) {
     	let button;
     	let mounted;
@@ -1037,13 +1037,13 @@ var app = (function () {
     		c: function create() {
     			button = element("button");
     			button.textContent = "Log in";
-    			add_location(button, file$1, 11, 4, 219);
+    			add_location(button, file$1, 17, 4, 394);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*toggle*/ ctx[1], false, false, false);
+    				dispose = listen_dev(button, "click", /*toggle*/ ctx[2], false, false, false);
     				mounted = true;
     			}
     		},
@@ -1059,35 +1059,104 @@ var app = (function () {
     		block,
     		id: create_else_block.name,
     		type: "else",
-    		source: "(11:0) {:else}",
+    		source: "(17:0) {:else}",
     		ctx
     	});
 
     	return block;
     }
 
-    // (9:0) {#if user.loggedIn}
-    function create_if_block(ctx) {
+    // (14:24) 
+    function create_if_block_1(ctx) {
+    	let p;
+    	let t1;
     	let button;
     	let mounted;
     	let dispose;
 
     	const block = {
     		c: function create() {
+    			p = element("p");
+    			p.textContent = "Welcome Guest!";
+    			t1 = space();
     			button = element("button");
     			button.textContent = "Log out";
-    			add_location(button, file$1, 9, 4, 160);
+    			add_location(p, file$1, 14, 4, 308);
+    			add_location(button, file$1, 15, 4, 335);
     		},
     		m: function mount(target, anchor) {
+    			insert_dev(target, p, anchor);
+    			insert_dev(target, t1, anchor);
     			insert_dev(target, button, anchor);
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*toggle*/ ctx[1], false, false, false);
+    				dispose = listen_dev(button, "click", /*toggle*/ ctx[2], false, false, false);
     				mounted = true;
     			}
     		},
     		p: noop,
     		d: function destroy(detaching) {
+    			if (detaching) detach_dev(p);
+    			if (detaching) detach_dev(t1);
+    			if (detaching) detach_dev(button);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_if_block_1.name,
+    		type: "if",
+    		source: "(14:24) ",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    // (11:0) {#if user.loggedIn && name !== ''}
+    function create_if_block(ctx) {
+    	let p;
+    	let t0;
+    	let t1;
+    	let t2;
+    	let t3;
+    	let button;
+    	let mounted;
+    	let dispose;
+
+    	const block = {
+    		c: function create() {
+    			p = element("p");
+    			t0 = text("Welcome ");
+    			t1 = text(/*name*/ ctx[0]);
+    			t2 = text("!");
+    			t3 = space();
+    			button = element("button");
+    			button.textContent = "Log out";
+    			add_location(p, file$1, 11, 4, 204);
+    			add_location(button, file$1, 12, 4, 232);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, p, anchor);
+    			append_dev(p, t0);
+    			append_dev(p, t1);
+    			append_dev(p, t2);
+    			insert_dev(target, t3, anchor);
+    			insert_dev(target, button, anchor);
+
+    			if (!mounted) {
+    				dispose = listen_dev(button, "click", /*toggle*/ ctx[2], false, false, false);
+    				mounted = true;
+    			}
+    		},
+    		p: function update(ctx, dirty) {
+    			if (dirty & /*name*/ 1) set_data_dev(t1, /*name*/ ctx[0]);
+    		},
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(p);
+    			if (detaching) detach_dev(t3);
     			if (detaching) detach_dev(button);
     			mounted = false;
     			dispose();
@@ -1098,7 +1167,7 @@ var app = (function () {
     		block,
     		id: create_if_block.name,
     		type: "if",
-    		source: "(9:0) {#if user.loggedIn}",
+    		source: "(11:0) {#if user.loggedIn && name !== ''}",
     		ctx
     	});
 
@@ -1109,7 +1178,8 @@ var app = (function () {
     	let if_block_anchor;
 
     	function select_block_type(ctx, dirty) {
-    		if (/*user*/ ctx[0].loggedIn) return create_if_block;
+    		if (/*user*/ ctx[1].loggedIn && /*name*/ ctx[0] !== '') return create_if_block;
+    		if (/*user*/ ctx[1].loggedIn) return create_if_block_1;
     		return create_else_block;
     	}
 
@@ -1164,34 +1234,40 @@ var app = (function () {
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('Logic', slots, []);
     	let user = { loggedIn: false };
+    	let { name = '' } = $$props;
 
     	function toggle() {
-    		$$invalidate(0, user.loggedIn = !user.loggedIn, user);
+    		$$invalidate(1, user.loggedIn = !user.loggedIn, user);
     	}
 
-    	const writable_props = [];
+    	const writable_props = ['name'];
 
     	Object.keys($$props).forEach(key => {
     		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Logic> was created with unknown prop '${key}'`);
     	});
 
-    	$$self.$capture_state = () => ({ user, toggle });
+    	$$self.$$set = $$props => {
+    		if ('name' in $$props) $$invalidate(0, name = $$props.name);
+    	};
+
+    	$$self.$capture_state = () => ({ user, name, toggle });
 
     	$$self.$inject_state = $$props => {
-    		if ('user' in $$props) $$invalidate(0, user = $$props.user);
+    		if ('user' in $$props) $$invalidate(1, user = $$props.user);
+    		if ('name' in $$props) $$invalidate(0, name = $$props.name);
     	};
 
     	if ($$props && "$$inject" in $$props) {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [user, toggle];
+    	return [name, user, toggle];
     }
 
     class Logic extends SvelteComponentDev {
     	constructor(options) {
     		super(options);
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, {});
+    		init(this, options, instance$1, create_fragment$1, safe_not_equal, { name: 0 });
 
     		dispatch_dev("SvelteRegisterComponent", {
     			component: this,
@@ -1199,6 +1275,14 @@ var app = (function () {
     			options,
     			id: create_fragment$1.name
     		});
+    	}
+
+    	get name() {
+    		throw new Error("<Logic>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+    	}
+
+    	set name(value) {
+    		throw new Error("<Logic>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
     	}
     }
 
@@ -1209,9 +1293,14 @@ var app = (function () {
     	let main;
     	let h1;
     	let t1;
-    	let logic;
+    	let logic0;
+    	let t2;
+    	let br;
+    	let t3;
+    	let logic1;
     	let current;
-    	logic = new Logic({ $$inline: true });
+    	logic0 = new Logic({ $$inline: true });
+    	logic1 = new Logic({ props: { name: "Janne" }, $$inline: true });
 
     	const block = {
     		c: function create() {
@@ -1219,9 +1308,14 @@ var app = (function () {
     			h1 = element("h1");
     			h1.textContent = "Logic component!";
     			t1 = space();
-    			create_component(logic.$$.fragment);
+    			create_component(logic0.$$.fragment);
+    			t2 = space();
+    			br = element("br");
+    			t3 = space();
+    			create_component(logic1.$$.fragment);
     			attr_dev(h1, "class", "svelte-bp2ne3");
     			add_location(h1, file, 30, 4, 598);
+    			add_location(br, file, 32, 4, 644);
     			attr_dev(main, "class", "svelte-bp2ne3");
     			add_location(main, file, 29, 0, 586);
     		},
@@ -1232,22 +1326,29 @@ var app = (function () {
     			insert_dev(target, main, anchor);
     			append_dev(main, h1);
     			append_dev(main, t1);
-    			mount_component(logic, main, null);
+    			mount_component(logic0, main, null);
+    			append_dev(main, t2);
+    			append_dev(main, br);
+    			append_dev(main, t3);
+    			mount_component(logic1, main, null);
     			current = true;
     		},
     		p: noop,
     		i: function intro(local) {
     			if (current) return;
-    			transition_in(logic.$$.fragment, local);
+    			transition_in(logic0.$$.fragment, local);
+    			transition_in(logic1.$$.fragment, local);
     			current = true;
     		},
     		o: function outro(local) {
-    			transition_out(logic.$$.fragment, local);
+    			transition_out(logic0.$$.fragment, local);
+    			transition_out(logic1.$$.fragment, local);
     			current = false;
     		},
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(main);
-    			destroy_component(logic);
+    			destroy_component(logic0);
+    			destroy_component(logic1);
     		}
     	};
 

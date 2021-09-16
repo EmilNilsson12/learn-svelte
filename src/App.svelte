@@ -30,4 +30,6 @@
 <main>
     <h1>Logic component!</h1>
     <Logic />
+    <br />
+    <Logic name="Janne" />
 </main>
