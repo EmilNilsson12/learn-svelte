@@ -1,32 +1,21 @@
 <script>
-    let index = 0;
-    async function getWorkoutData() {
-        const res = await fetch(
-            `https://612896ae86a213001729f9c0.mockapi.io/objWithoutArrayValues`
-        );
-        const text = await res;
+    let m = { x: 0, y: 0 };
 
-        if (res.ok) {
-            return text.json();
-        } else {
-            throw new Error(text);
-        }
-    }
-
-    let promise = getWorkoutData();
-
-    function handleClick() {
-        promise = getWorkoutData();
+    function handleMousemove(event) {
+        console.log(event.clientX);
+        console.log(event.clientY);
+        m.x = event.clientX;
+        m.y = event.clientY;
     }
 </script>
 
-<button on:click={handleClick}> Get workout data </button>
+<style>
+    div {
+        width: 100%;
+        height: 100vh;
+    }
+</style>
 
-<!-- replace this element -->
-{#await promise}
-    <p>Waiting...</p>
-{:then number}
-    <pre>The number is {JSON.stringify(number[0], null, 2)}</pre>
-{:catch error}
-    <p>Error was caught</p>
-{/await}
+<div on:mousemove={handleMousemove}>
+    The mouse position is {m.x} x {m.y}
+</div>

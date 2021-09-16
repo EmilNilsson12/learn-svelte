@@ -4,9 +4,6 @@ var app = (function () {
     'use strict';
 
     function noop() { }
-    function is_promise(value) {
-        return value && typeof value === 'object' && typeof value.then === 'function';
-    }
     function add_location(element, file, line, column, char) {
         element.__svelte_meta = {
             loc: { file, line, column, char }
@@ -45,15 +42,15 @@ var app = (function () {
     function text(data) {
         return document.createTextNode(data);
     }
-    function space() {
-        return text(' ');
-    }
-    function empty() {
-        return text('');
-    }
     function listen(node, event, handler, options) {
         node.addEventListener(event, handler, options);
         return () => node.removeEventListener(event, handler, options);
+    }
+    function attr(node, attribute, value) {
+        if (value == null)
+            node.removeAttribute(attribute);
+        else if (node.getAttribute(attribute) !== value)
+            node.setAttribute(attribute, value);
     }
     function children(element) {
         return Array.from(element.childNodes);
@@ -67,11 +64,6 @@ var app = (function () {
     let current_component;
     function set_current_component(component) {
         current_component = component;
-    }
-    function get_current_component() {
-        if (!current_component)
-            throw new Error('Function called outside component initialization');
-        return current_component;
     }
 
     const dirty_components = [];
@@ -138,123 +130,11 @@ var app = (function () {
         }
     }
     const outroing = new Set();
-    let outros;
-    function group_outros() {
-        outros = {
-            r: 0,
-            c: [],
-            p: outros // parent group
-        };
-    }
-    function check_outros() {
-        if (!outros.r) {
-            run_all(outros.c);
-        }
-        outros = outros.p;
-    }
     function transition_in(block, local) {
         if (block && block.i) {
             outroing.delete(block);
             block.i(local);
         }
-    }
-    function transition_out(block, local, detach, callback) {
-        if (block && block.o) {
-            if (outroing.has(block))
-                return;
-            outroing.add(block);
-            outros.c.push(() => {
-                outroing.delete(block);
-                if (callback) {
-                    if (detach)
-                        block.d(1);
-                    callback();
-                }
-            });
-            block.o(local);
-        }
-    }
-
-    function handle_promise(promise, info) {
-        const token = info.token = {};
-        function update(type, index, key, value) {
-            if (info.token !== token)
-                return;
-            info.resolved = value;
-            let child_ctx = info.ctx;
-            if (key !== undefined) {
-                child_ctx = child_ctx.slice();
-                child_ctx[key] = value;
-            }
-            const block = type && (info.current = type)(child_ctx);
-            let needs_flush = false;
-            if (info.block) {
-                if (info.blocks) {
-                    info.blocks.forEach((block, i) => {
-                        if (i !== index && block) {
-                            group_outros();
-                            transition_out(block, 1, 1, () => {
-                                if (info.blocks[i] === block) {
-                                    info.blocks[i] = null;
-                                }
-                            });
-                            check_outros();
-                        }
-                    });
-                }
-                else {
-                    info.block.d(1);
-                }
-                block.c();
-                transition_in(block, 1);
-                block.m(info.mount(), info.anchor);
-                needs_flush = true;
-            }
-            info.block = block;
-            if (info.blocks)
-                info.blocks[index] = block;
-            if (needs_flush) {
-                flush();
-            }
-        }
-        if (is_promise(promise)) {
-            const current_component = get_current_component();
-            promise.then(value => {
-                set_current_component(current_component);
-                update(info.then, 1, info.value, value);
-                set_current_component(null);
-            }, error => {
-                set_current_component(current_component);
-                update(info.catch, 2, info.error, error);
-                set_current_component(null);
-                if (!info.hasCatch) {
-                    throw error;
-                }
-            });
-            // if we previously had a then/catch block, destroy it
-            if (info.current !== info.pending) {
-                update(info.pending, 0);
-                return true;
-            }
-        }
-        else {
-            if (info.current !== info.then) {
-                update(info.then, 1, info.value, promise);
-                return true;
-            }
-            info.resolved = promise;
-        }
-    }
-    function update_await_block_branch(info, ctx, dirty) {
-        const child_ctx = ctx.slice();
-        const { resolved } = info;
-        if (info.current === info.then) {
-            child_ctx[info.value] = resolved;
-        }
-        if (info.current === info.catch) {
-            child_ctx[info.error] = resolved;
-        }
-        info.block.p(child_ctx, dirty);
     }
 
     const globals = (typeof window !== 'undefined'
@@ -416,6 +296,13 @@ var app = (function () {
             dispose();
         };
     }
+    function attr_dev(node, attribute, value) {
+        attr(node, attribute, value);
+        if (value == null)
+            dispatch_dev('SvelteDOMRemoveAttribute', { node, attribute });
+        else
+            dispatch_dev('SvelteDOMSetAttribute', { node, attribute, value });
+    }
     function set_data_dev(text, data) {
         data = '' + data;
         if (text.wholeText === data)
@@ -452,171 +339,53 @@ var app = (function () {
 
     /* src\App.svelte generated by Svelte v3.42.5 */
 
-    const { Error: Error_1 } = globals;
+    const { console: console_1 } = globals;
     const file = "src\\App.svelte";
 
-    // (30:0) {:catch error}
-    function create_catch_block(ctx) {
-    	let p;
-
-    	const block = {
-    		c: function create() {
-    			p = element("p");
-    			p.textContent = "Error was caught";
-    			add_location(p, file, 30, 4, 724);
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, p, anchor);
-    		},
-    		p: noop,
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(p);
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_catch_block.name,
-    		type: "catch",
-    		source: "(30:0) {:catch error}",
-    		ctx
-    	});
-
-    	return block;
-    }
-
-    // (28:0) {:then number}
-    function create_then_block(ctx) {
-    	let pre;
-    	let t0;
-    	let t1_value = JSON.stringify(/*number*/ ctx[3][0], null, 2) + "";
-    	let t1;
-
-    	const block = {
-    		c: function create() {
-    			pre = element("pre");
-    			t0 = text("The number is ");
-    			t1 = text(t1_value);
-    			add_location(pre, file, 28, 4, 641);
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, pre, anchor);
-    			append_dev(pre, t0);
-    			append_dev(pre, t1);
-    		},
-    		p: function update(ctx, dirty) {
-    			if (dirty & /*promise*/ 1 && t1_value !== (t1_value = JSON.stringify(/*number*/ ctx[3][0], null, 2) + "")) set_data_dev(t1, t1_value);
-    		},
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(pre);
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_then_block.name,
-    		type: "then",
-    		source: "(28:0) {:then number}",
-    		ctx
-    	});
-
-    	return block;
-    }
-
-    // (26:16)       <p>Waiting...</p>  {:then number}
-    function create_pending_block(ctx) {
-    	let p;
-
-    	const block = {
-    		c: function create() {
-    			p = element("p");
-    			p.textContent = "Waiting...";
-    			add_location(p, file, 26, 4, 602);
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, p, anchor);
-    		},
-    		p: noop,
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(p);
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_pending_block.name,
-    		type: "pending",
-    		source: "(26:16)       <p>Waiting...</p>  {:then number}",
-    		ctx
-    	});
-
-    	return block;
-    }
-
     function create_fragment(ctx) {
-    	let button;
+    	let div;
+    	let t0;
+    	let t1_value = /*m*/ ctx[0].x + "";
     	let t1;
-    	let await_block_anchor;
-    	let promise_1;
+    	let t2;
+    	let t3_value = /*m*/ ctx[0].y + "";
+    	let t3;
     	let mounted;
     	let dispose;
 
-    	let info = {
-    		ctx,
-    		current: null,
-    		token: null,
-    		hasCatch: true,
-    		pending: create_pending_block,
-    		then: create_then_block,
-    		catch: create_catch_block,
-    		value: 3,
-    		error: 4
-    	};
-
-    	handle_promise(promise_1 = /*promise*/ ctx[0], info);
-
     	const block = {
     		c: function create() {
-    			button = element("button");
-    			button.textContent = "Get workout data";
-    			t1 = space();
-    			await_block_anchor = empty();
-    			info.block.c();
-    			add_location(button, file, 22, 0, 487);
+    			div = element("div");
+    			t0 = text("The mouse position is ");
+    			t1 = text(t1_value);
+    			t2 = text(" x ");
+    			t3 = text(t3_value);
+    			attr_dev(div, "class", "svelte-158g6vw");
+    			add_location(div, file, 18, 0, 319);
     		},
     		l: function claim(nodes) {
-    			throw new Error_1("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
-    			insert_dev(target, button, anchor);
-    			insert_dev(target, t1, anchor);
-    			insert_dev(target, await_block_anchor, anchor);
-    			info.block.m(target, info.anchor = anchor);
-    			info.mount = () => await_block_anchor.parentNode;
-    			info.anchor = await_block_anchor;
+    			insert_dev(target, div, anchor);
+    			append_dev(div, t0);
+    			append_dev(div, t1);
+    			append_dev(div, t2);
+    			append_dev(div, t3);
 
     			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*handleClick*/ ctx[1], false, false, false);
+    				dispose = listen_dev(div, "mousemove", /*handleMousemove*/ ctx[1], false, false, false);
     				mounted = true;
     			}
     		},
-    		p: function update(new_ctx, [dirty]) {
-    			ctx = new_ctx;
-    			info.ctx = ctx;
-
-    			if (dirty & /*promise*/ 1 && promise_1 !== (promise_1 = /*promise*/ ctx[0]) && handle_promise(promise_1, info)) ; else {
-    				update_await_block_branch(info, ctx, dirty);
-    			}
+    		p: function update(ctx, [dirty]) {
+    			if (dirty & /*m*/ 1 && t1_value !== (t1_value = /*m*/ ctx[0].x + "")) set_data_dev(t1, t1_value);
+    			if (dirty & /*m*/ 1 && t3_value !== (t3_value = /*m*/ ctx[0].y + "")) set_data_dev(t3, t3_value);
     		},
     		i: noop,
     		o: noop,
     		d: function destroy(detaching) {
-    			if (detaching) detach_dev(button);
-    			if (detaching) detach_dev(t1);
-    			if (detaching) detach_dev(await_block_anchor);
-    			info.block.d(detaching);
-    			info.token = null;
-    			info = null;
+    			if (detaching) detach_dev(div);
     			mounted = false;
     			dispose();
     		}
@@ -633,50 +402,35 @@ var app = (function () {
     	return block;
     }
 
-    async function getWorkoutData() {
-    	const res = await fetch(`https://612896ae86a213001729f9c0.mockapi.io/objWithoutArrayValues`);
-    	const text = await res;
-
-    	if (res.ok) {
-    		return text.json();
-    	} else {
-    		throw new Error(text);
-    	}
-    }
-
     function instance($$self, $$props, $$invalidate) {
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('App', slots, []);
-    	let index = 0;
-    	let promise = getWorkoutData();
+    	let m = { x: 0, y: 0 };
 
-    	function handleClick() {
-    		$$invalidate(0, promise = getWorkoutData());
+    	function handleMousemove(event) {
+    		console.log(event.clientX);
+    		console.log(event.clientY);
+    		$$invalidate(0, m.x = event.clientX, m);
+    		$$invalidate(0, m.y = event.clientY, m);
     	}
 
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<App> was created with unknown prop '${key}'`);
+    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<App> was created with unknown prop '${key}'`);
     	});
 
-    	$$self.$capture_state = () => ({
-    		index,
-    		getWorkoutData,
-    		promise,
-    		handleClick
-    	});
+    	$$self.$capture_state = () => ({ m, handleMousemove });
 
     	$$self.$inject_state = $$props => {
-    		if ('index' in $$props) index = $$props.index;
-    		if ('promise' in $$props) $$invalidate(0, promise = $$props.promise);
+    		if ('m' in $$props) $$invalidate(0, m = $$props.m);
     	};
 
     	if ($$props && "$$inject" in $$props) {
     		$$self.$inject_state($$props.$$inject);
     	}
 
-    	return [promise, handleClick];
+    	return [m, handleMousemove];
     }
 
     class App extends SvelteComponentDev {
