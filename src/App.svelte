@@ -1,7 +1,5 @@
 <script>
-    import Users from './components/Users.svelte';
-    import Counter from './components/Counter.svelte';
-    import Logic from './components/Logic.svelte';
+    import Eachloop from './components/Each-loop.svelte';
 </script>
 
 <style>
@@ -28,8 +26,6 @@
 </style>
 
 <main>
-    <h1>Logic component!</h1>
-    <Logic />
-    <br />
-    <Logic name="Janne" />
+    <h1>Each loop!</h1>
+    <Eachloop name="Janne" />
 </main>
