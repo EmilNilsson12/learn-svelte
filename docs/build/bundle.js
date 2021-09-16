@@ -512,7 +512,7 @@ var app = (function () {
     }
 
     // (56:8) {:else}
-    function create_else_block(ctx) {
+    function create_else_block$1(ctx) {
     	let div;
 
     	const block = {
@@ -531,7 +531,7 @@ var app = (function () {
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_else_block.name,
+    		id: create_else_block$1.name,
     		type: "else",
     		source: "(56:8) {:else}",
     		ctx
@@ -611,7 +611,7 @@ var app = (function () {
     	let each_1_else = null;
 
     	if (!each_value.length) {
-    		each_1_else = create_else_block(ctx);
+    		each_1_else = create_else_block$1(ctx);
     	}
 
     	const block = {
@@ -693,7 +693,7 @@ var app = (function () {
     						each_1_else = null;
     					}
     				} else if (!each_1_else) {
-    					each_1_else = create_else_block(ctx);
+    					each_1_else = create_else_block$1(ctx);
     					each_1_else.c();
     					each_1_else.m(div, null);
     				}
@@ -1027,8 +1027,47 @@ var app = (function () {
 
     const file$1 = "src\\components\\Logic.svelte";
 
+    // (11:0) {:else}
+    function create_else_block(ctx) {
+    	let button;
+    	let mounted;
+    	let dispose;
+
+    	const block = {
+    		c: function create() {
+    			button = element("button");
+    			button.textContent = "Log in";
+    			add_location(button, file$1, 11, 4, 219);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, button, anchor);
+
+    			if (!mounted) {
+    				dispose = listen_dev(button, "click", /*toggle*/ ctx[1], false, false, false);
+    				mounted = true;
+    			}
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(button);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_else_block.name,
+    		type: "else",
+    		source: "(11:0) {:else}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
     // (9:0) {#if user.loggedIn}
-    function create_if_block_1(ctx) {
+    function create_if_block(ctx) {
     	let button;
     	let mounted;
     	let dispose;
@@ -1057,7 +1096,7 @@ var app = (function () {
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_if_block_1.name,
+    		id: create_if_block.name,
     		type: "if",
     		source: "(9:0) {#if user.loggedIn}",
     		ctx
@@ -1066,101 +1105,47 @@ var app = (function () {
     	return block;
     }
 
-    // (13:0) {#if !user.loggedIn}
-    function create_if_block(ctx) {
-    	let button;
-    	let mounted;
-    	let dispose;
-
-    	const block = {
-    		c: function create() {
-    			button = element("button");
-    			button.textContent = "Log in";
-    			add_location(button, file$1, 13, 4, 241);
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, button, anchor);
-
-    			if (!mounted) {
-    				dispose = listen_dev(button, "click", /*toggle*/ ctx[1], false, false, false);
-    				mounted = true;
-    			}
-    		},
-    		p: noop,
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(button);
-    			mounted = false;
-    			dispose();
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_if_block.name,
-    		type: "if",
-    		source: "(13:0) {#if !user.loggedIn}",
-    		ctx
-    	});
-
-    	return block;
-    }
-
     function create_fragment$1(ctx) {
-    	let t;
-    	let if_block1_anchor;
-    	let if_block0 = /*user*/ ctx[0].loggedIn && create_if_block_1(ctx);
-    	let if_block1 = !/*user*/ ctx[0].loggedIn && create_if_block(ctx);
+    	let if_block_anchor;
+
+    	function select_block_type(ctx, dirty) {
+    		if (/*user*/ ctx[0].loggedIn) return create_if_block;
+    		return create_else_block;
+    	}
+
+    	let current_block_type = select_block_type(ctx);
+    	let if_block = current_block_type(ctx);
 
     	const block = {
     		c: function create() {
-    			if (if_block0) if_block0.c();
-    			t = space();
-    			if (if_block1) if_block1.c();
-    			if_block1_anchor = empty();
+    			if_block.c();
+    			if_block_anchor = empty();
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
-    			if (if_block0) if_block0.m(target, anchor);
-    			insert_dev(target, t, anchor);
-    			if (if_block1) if_block1.m(target, anchor);
-    			insert_dev(target, if_block1_anchor, anchor);
+    			if_block.m(target, anchor);
+    			insert_dev(target, if_block_anchor, anchor);
     		},
     		p: function update(ctx, [dirty]) {
-    			if (/*user*/ ctx[0].loggedIn) {
-    				if (if_block0) {
-    					if_block0.p(ctx, dirty);
-    				} else {
-    					if_block0 = create_if_block_1(ctx);
-    					if_block0.c();
-    					if_block0.m(t.parentNode, t);
-    				}
-    			} else if (if_block0) {
-    				if_block0.d(1);
-    				if_block0 = null;
-    			}
+    			if (current_block_type === (current_block_type = select_block_type(ctx)) && if_block) {
+    				if_block.p(ctx, dirty);
+    			} else {
+    				if_block.d(1);
+    				if_block = current_block_type(ctx);
 
-    			if (!/*user*/ ctx[0].loggedIn) {
-    				if (if_block1) {
-    					if_block1.p(ctx, dirty);
-    				} else {
-    					if_block1 = create_if_block(ctx);
-    					if_block1.c();
-    					if_block1.m(if_block1_anchor.parentNode, if_block1_anchor);
+    				if (if_block) {
+    					if_block.c();
+    					if_block.m(if_block_anchor.parentNode, if_block_anchor);
     				}
-    			} else if (if_block1) {
-    				if_block1.d(1);
-    				if_block1 = null;
     			}
     		},
     		i: noop,
     		o: noop,
     		d: function destroy(detaching) {
-    			if (if_block0) if_block0.d(detaching);
-    			if (detaching) detach_dev(t);
-    			if (if_block1) if_block1.d(detaching);
-    			if (detaching) detach_dev(if_block1_anchor);
+    			if_block.d(detaching);
+    			if (detaching) detach_dev(if_block_anchor);
     		}
     	};
 
