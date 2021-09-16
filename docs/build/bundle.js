@@ -861,11 +861,11 @@ var app = (function () {
     			t19 = text(/*count3*/ ctx[2]);
     			t20 = text(" is ");
     			t21 = text(/*product*/ ctx[3]);
-    			add_location(button0, file$1, 28, 4, 470);
-    			add_location(button1, file$1, 32, 4, 585);
-    			add_location(button2, file$1, 36, 4, 700);
-    			add_location(p, file$1, 40, 4, 815);
-    			add_location(div, file$1, 27, 0, 459);
+    			add_location(button0, file$1, 32, 4, 529);
+    			add_location(button1, file$1, 37, 4, 653);
+    			add_location(button2, file$1, 42, 4, 777);
+    			add_location(p, file$1, 47, 4, 901);
+    			add_location(div, file$1, 31, 0, 518);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -992,7 +992,7 @@ var app = (function () {
     		if ($$self.$$.dirty & /*product, count1, count2, count3*/ 15) {
     			{
     				if (product > 100) {
-    					console.log("big number");
+    					console.log('big number');
     					$$invalidate(0, count1 = 0);
     					$$invalidate(1, count2 = 0);
     					$$invalidate(2, count3 = 0);
@@ -1043,10 +1043,10 @@ var app = (function () {
     			create_component(counter.$$.fragment);
     			t2 = space();
     			create_component(users.$$.fragment);
-    			attr_dev(h1, "class", "svelte-nb33eg");
-    			add_location(h1, file, 7, 1, 132);
-    			attr_dev(main, "class", "svelte-nb33eg");
-    			add_location(main, file, 6, 0, 123);
+    			attr_dev(h1, "class", "svelte-bp2ne3");
+    			add_location(h1, file, 29, 4, 546);
+    			attr_dev(main, "class", "svelte-bp2ne3");
+    			add_location(main, file, 28, 0, 534);
     		},
     		l: function claim(nodes) {
     			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
