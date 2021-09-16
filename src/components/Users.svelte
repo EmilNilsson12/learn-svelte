@@ -32,9 +32,9 @@
 </style>
     
 <main>
-    <div>
+    <aside>
         
-    </div>
+    </aside>
     <div class='my-grid'>
         {#each users as user}
         <User {user}/>
@@ -47,7 +47,7 @@
         
     </div>
     
-    <div>
-        
-    </div>
+    <aside>
+
+    </aside>
 </main>
