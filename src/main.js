@@ -1,7 +1,7 @@
-import App from './App.svelte';
+import Parent from './Parent.svelte';
 
-const app = new App({
-	target: document.body,
+const app = new Parent({
+    target: document.body,
 });
 
 export default app;
