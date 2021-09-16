@@ -4,6 +4,9 @@ var app = (function () {
     'use strict';
 
     function noop() { }
+    function is_promise(value) {
+        return value && typeof value === 'object' && typeof value.then === 'function';
+    }
     function add_location(element, file, line, column, char) {
         element.__svelte_meta = {
             loc: { file, line, column, char }
@@ -52,12 +55,6 @@ var app = (function () {
         node.addEventListener(event, handler, options);
         return () => node.removeEventListener(event, handler, options);
     }
-    function attr(node, attribute, value) {
-        if (value == null)
-            node.removeAttribute(attribute);
-        else if (node.getAttribute(attribute) !== value)
-            node.setAttribute(attribute, value);
-    }
     function children(element) {
         return Array.from(element.childNodes);
     }
@@ -70,6 +67,11 @@ var app = (function () {
     let current_component;
     function set_current_component(component) {
         current_component = component;
+    }
+    function get_current_component() {
+        if (!current_component)
+            throw new Error('Function called outside component initialization');
+        return current_component;
     }
 
     const dirty_components = [];
@@ -172,99 +174,94 @@ var app = (function () {
             block.o(local);
         }
     }
-    function outro_and_destroy_block(block, lookup) {
-        transition_out(block, 1, 1, () => {
-            lookup.delete(block.key);
-        });
-    }
-    function update_keyed_each(old_blocks, dirty, get_key, dynamic, ctx, list, lookup, node, destroy, create_each_block, next, get_context) {
-        let o = old_blocks.length;
-        let n = list.length;
-        let i = o;
-        const old_indexes = {};
-        while (i--)
-            old_indexes[old_blocks[i].key] = i;
-        const new_blocks = [];
-        const new_lookup = new Map();
-        const deltas = new Map();
-        i = n;
-        while (i--) {
-            const child_ctx = get_context(ctx, list, i);
-            const key = get_key(child_ctx);
-            let block = lookup.get(key);
-            if (!block) {
-                block = create_each_block(key, child_ctx);
+
+    function handle_promise(promise, info) {
+        const token = info.token = {};
+        function update(type, index, key, value) {
+            if (info.token !== token)
+                return;
+            info.resolved = value;
+            let child_ctx = info.ctx;
+            if (key !== undefined) {
+                child_ctx = child_ctx.slice();
+                child_ctx[key] = value;
+            }
+            const block = type && (info.current = type)(child_ctx);
+            let needs_flush = false;
+            if (info.block) {
+                if (info.blocks) {
+                    info.blocks.forEach((block, i) => {
+                        if (i !== index && block) {
+                            group_outros();
+                            transition_out(block, 1, 1, () => {
+                                if (info.blocks[i] === block) {
+                                    info.blocks[i] = null;
+                                }
+                            });
+                            check_outros();
+                        }
+                    });
+                }
+                else {
+                    info.block.d(1);
+                }
                 block.c();
+                transition_in(block, 1);
+                block.m(info.mount(), info.anchor);
+                needs_flush = true;
             }
-            else if (dynamic) {
-                block.p(child_ctx, dirty);
-            }
-            new_lookup.set(key, new_blocks[i] = block);
-            if (key in old_indexes)
-                deltas.set(key, Math.abs(i - old_indexes[key]));
-        }
-        const will_move = new Set();
-        const did_move = new Set();
-        function insert(block) {
-            transition_in(block, 1);
-            block.m(node, next);
-            lookup.set(block.key, block);
-            next = block.first;
-            n--;
-        }
-        while (o && n) {
-            const new_block = new_blocks[n - 1];
-            const old_block = old_blocks[o - 1];
-            const new_key = new_block.key;
-            const old_key = old_block.key;
-            if (new_block === old_block) {
-                // do nothing
-                next = new_block.first;
-                o--;
-                n--;
-            }
-            else if (!new_lookup.has(old_key)) {
-                // remove old block
-                destroy(old_block, lookup);
-                o--;
-            }
-            else if (!lookup.has(new_key) || will_move.has(new_key)) {
-                insert(new_block);
-            }
-            else if (did_move.has(old_key)) {
-                o--;
-            }
-            else if (deltas.get(new_key) > deltas.get(old_key)) {
-                did_move.add(new_key);
-                insert(new_block);
-            }
-            else {
-                will_move.add(old_key);
-                o--;
+            info.block = block;
+            if (info.blocks)
+                info.blocks[index] = block;
+            if (needs_flush) {
+                flush();
             }
         }
-        while (o--) {
-            const old_block = old_blocks[o];
-            if (!new_lookup.has(old_block.key))
-                destroy(old_block, lookup);
-        }
-        while (n)
-            insert(new_blocks[n - 1]);
-        return new_blocks;
-    }
-    function validate_each_keys(ctx, list, get_context, get_key) {
-        const keys = new Set();
-        for (let i = 0; i < list.length; i++) {
-            const key = get_key(get_context(ctx, list, i));
-            if (keys.has(key)) {
-                throw new Error('Cannot have duplicate keys in a keyed each');
+        if (is_promise(promise)) {
+            const current_component = get_current_component();
+            promise.then(value => {
+                set_current_component(current_component);
+                update(info.then, 1, info.value, value);
+                set_current_component(null);
+            }, error => {
+                set_current_component(current_component);
+                update(info.catch, 2, info.error, error);
+                set_current_component(null);
+                if (!info.hasCatch) {
+                    throw error;
+                }
+            });
+            // if we previously had a then/catch block, destroy it
+            if (info.current !== info.pending) {
+                update(info.pending, 0);
+                return true;
             }
-            keys.add(key);
+        }
+        else {
+            if (info.current !== info.then) {
+                update(info.then, 1, info.value, promise);
+                return true;
+            }
+            info.resolved = promise;
         }
     }
-    function create_component(block) {
-        block && block.c();
+    function update_await_block_branch(info, ctx, dirty) {
+        const child_ctx = ctx.slice();
+        const { resolved } = info;
+        if (info.current === info.then) {
+            child_ctx[info.value] = resolved;
+        }
+        if (info.current === info.catch) {
+            child_ctx[info.error] = resolved;
+        }
+        info.block.p(child_ctx, dirty);
     }
+
+    const globals = (typeof window !== 'undefined'
+        ? window
+        : typeof globalThis !== 'undefined'
+            ? globalThis
+            : global);
     function mount_component(component, target, anchor, customElement) {
         const { fragment, on_mount, on_destroy, after_update } = component.$$;
         fragment && fragment.m(target, anchor);
@@ -419,28 +416,12 @@ var app = (function () {
             dispose();
         };
     }
-    function attr_dev(node, attribute, value) {
-        attr(node, attribute, value);
-        if (value == null)
-            dispatch_dev('SvelteDOMRemoveAttribute', { node, attribute });
-        else
-            dispatch_dev('SvelteDOMSetAttribute', { node, attribute, value });
-    }
     function set_data_dev(text, data) {
         data = '' + data;
         if (text.wholeText === data)
             return;
         dispatch_dev('SvelteDOMSetData', { node: text, data });
         text.data = data;
-    }
-    function validate_each_argument(arg) {
-        if (typeof arg !== 'string' && !(arg && typeof arg === 'object' && 'length' in arg)) {
-            let msg = '{#each} only iterates over array-like objects.';
-            if (typeof Symbol === 'function' && arg && Symbol.iterator in arg) {
-                msg += ' You can use a spread to convert this iterable into an array.';
-            }
-            throw new Error(msg);
-        }
     }
     function validate_slots(name, slot, keys) {
         for (const slot_key of Object.keys(slot)) {
@@ -469,47 +450,25 @@ var app = (function () {
         $inject_state() { }
     }
 
-    /* src\components\Thing.svelte generated by Svelte v3.42.5 */
+    /* src\App.svelte generated by Svelte v3.42.5 */
 
-    const file$2 = "src\\components\\Thing.svelte";
+    const { Error: Error_1 } = globals;
+    const file = "src\\App.svelte";
 
-    function create_fragment$2(ctx) {
+    // (30:0) {:catch error}
+    function create_catch_block(ctx) {
     	let p;
-    	let span;
-    	let t0;
-    	let t1;
-    	let t2;
-    	let t3;
 
     	const block = {
     		c: function create() {
     			p = element("p");
-    			span = element("span");
-    			t0 = text("The emoji for ");
-    			t1 = text(/*name*/ ctx[0]);
-    			t2 = text(" is ");
-    			t3 = text(/*emoji*/ ctx[1]);
-    			attr_dev(span, "class", "svelte-1jp3rp4");
-    			add_location(span, file$2, 30, 4, 624);
-    			attr_dev(p, "class", "svelte-1jp3rp4");
-    			add_location(p, file$2, 29, 0, 615);
-    		},
-    		l: function claim(nodes) {
-    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    			p.textContent = "Error was caught";
+    			add_location(p, file, 30, 4, 724);
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, p, anchor);
-    			append_dev(p, span);
-    			append_dev(span, t0);
-    			append_dev(span, t1);
-    			append_dev(span, t2);
-    			append_dev(span, t3);
     		},
-    		p: function update(ctx, [dirty]) {
-    			if (dirty & /*name*/ 1) set_data_dev(t1, /*name*/ ctx[0]);
-    		},
-    		i: noop,
-    		o: noop,
+    		p: noop,
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(p);
     		}
@@ -517,347 +476,149 @@ var app = (function () {
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_fragment$2.name,
-    		type: "component",
-    		source: "",
+    		id: create_catch_block.name,
+    		type: "catch",
+    		source: "(30:0) {:catch error}",
     		ctx
     	});
 
     	return block;
     }
 
-    function instance$2($$self, $$props, $$invalidate) {
-    	let { $$slots: slots = {}, $$scope } = $$props;
-    	validate_slots('Thing', slots, []);
-
-    	const emojis = {
-    		apple: '🍎',
-    		banana: '🍌',
-    		carrot: '🥕',
-    		doughnut: '🍩',
-    		egg: '🥚'
-    	};
-
-    	let { name } = $$props;
-
-    	// ...but the "emoji" variable is fixed upon initialisation of the component
-    	const emoji = emojis[name];
-
-    	const writable_props = ['name'];
-
-    	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Thing> was created with unknown prop '${key}'`);
-    	});
-
-    	$$self.$$set = $$props => {
-    		if ('name' in $$props) $$invalidate(0, name = $$props.name);
-    	};
-
-    	$$self.$capture_state = () => ({ emojis, name, emoji });
-
-    	$$self.$inject_state = $$props => {
-    		if ('name' in $$props) $$invalidate(0, name = $$props.name);
-    	};
-
-    	if ($$props && "$$inject" in $$props) {
-    		$$self.$inject_state($$props.$$inject);
-    	}
-
-    	return [name, emoji];
-    }
-
-    class Thing extends SvelteComponentDev {
-    	constructor(options) {
-    		super(options);
-    		init(this, options, instance$2, create_fragment$2, safe_not_equal, { name: 0 });
-
-    		dispatch_dev("SvelteRegisterComponent", {
-    			component: this,
-    			tagName: "Thing",
-    			options,
-    			id: create_fragment$2.name
-    		});
-
-    		const { ctx } = this.$$;
-    		const props = options.props || {};
-
-    		if (/*name*/ ctx[0] === undefined && !('name' in props)) {
-    			console.warn("<Thing> was created without expected prop 'name'");
-    		}
-    	}
-
-    	get name() {
-    		throw new Error("<Thing>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-    	}
-
-    	set name(value) {
-    		throw new Error("<Thing>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-    	}
-    }
-
-    /* src\components\Each-loop.svelte generated by Svelte v3.42.5 */
-    const file$1 = "src\\components\\Each-loop.svelte";
-
-    function get_each_context(ctx, list, i) {
-    	const child_ctx = ctx.slice();
-    	child_ctx[2] = list[i];
-    	return child_ctx;
-    }
-
-    // (19:0) {#each things as thing (thing.id)}
-    function create_each_block(key_1, ctx) {
-    	let first;
-    	let thing;
-    	let current;
-
-    	thing = new Thing({
-    			props: { name: /*thing*/ ctx[2].name },
-    			$$inline: true
-    		});
+    // (28:0) {:then number}
+    function create_then_block(ctx) {
+    	let pre;
+    	let t0;
+    	let t1_value = JSON.stringify(/*number*/ ctx[3][0], null, 2) + "";
+    	let t1;
 
     	const block = {
-    		key: key_1,
-    		first: null,
     		c: function create() {
-    			first = empty();
-    			create_component(thing.$$.fragment);
-    			this.first = first;
+    			pre = element("pre");
+    			t0 = text("The number is ");
+    			t1 = text(t1_value);
+    			add_location(pre, file, 28, 4, 641);
     		},
     		m: function mount(target, anchor) {
-    			insert_dev(target, first, anchor);
-    			mount_component(thing, target, anchor);
-    			current = true;
+    			insert_dev(target, pre, anchor);
+    			append_dev(pre, t0);
+    			append_dev(pre, t1);
     		},
-    		p: function update(new_ctx, dirty) {
-    			ctx = new_ctx;
-    			const thing_changes = {};
-    			if (dirty & /*things*/ 1) thing_changes.name = /*thing*/ ctx[2].name;
-    			thing.$set(thing_changes);
-    		},
-    		i: function intro(local) {
-    			if (current) return;
-    			transition_in(thing.$$.fragment, local);
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			transition_out(thing.$$.fragment, local);
-    			current = false;
+    		p: function update(ctx, dirty) {
+    			if (dirty & /*promise*/ 1 && t1_value !== (t1_value = JSON.stringify(/*number*/ ctx[3][0], null, 2) + "")) set_data_dev(t1, t1_value);
     		},
     		d: function destroy(detaching) {
-    			if (detaching) detach_dev(first);
-    			destroy_component(thing, detaching);
+    			if (detaching) detach_dev(pre);
     		}
     	};
 
     	dispatch_dev("SvelteRegisterBlock", {
     		block,
-    		id: create_each_block.name,
-    		type: "each",
-    		source: "(19:0) {#each things as thing (thing.id)}",
+    		id: create_then_block.name,
+    		type: "then",
+    		source: "(28:0) {:then number}",
     		ctx
     	});
 
     	return block;
     }
 
-    function create_fragment$1(ctx) {
+    // (26:16)       <p>Waiting...</p>  {:then number}
+    function create_pending_block(ctx) {
+    	let p;
+
+    	const block = {
+    		c: function create() {
+    			p = element("p");
+    			p.textContent = "Waiting...";
+    			add_location(p, file, 26, 4, 602);
+    		},
+    		m: function mount(target, anchor) {
+    			insert_dev(target, p, anchor);
+    		},
+    		p: noop,
+    		d: function destroy(detaching) {
+    			if (detaching) detach_dev(p);
+    		}
+    	};
+
+    	dispatch_dev("SvelteRegisterBlock", {
+    		block,
+    		id: create_pending_block.name,
+    		type: "pending",
+    		source: "(26:16)       <p>Waiting...</p>  {:then number}",
+    		ctx
+    	});
+
+    	return block;
+    }
+
+    function create_fragment(ctx) {
     	let button;
     	let t1;
-    	let each_blocks = [];
-    	let each_1_lookup = new Map();
-    	let each_1_anchor;
-    	let current;
+    	let await_block_anchor;
+    	let promise_1;
     	let mounted;
     	let dispose;
-    	let each_value = /*things*/ ctx[0];
-    	validate_each_argument(each_value);
-    	const get_key = ctx => /*thing*/ ctx[2].id;
-    	validate_each_keys(ctx, each_value, get_each_context, get_key);
 
-    	for (let i = 0; i < each_value.length; i += 1) {
-    		let child_ctx = get_each_context(ctx, each_value, i);
-    		let key = get_key(child_ctx);
-    		each_1_lookup.set(key, each_blocks[i] = create_each_block(key, child_ctx));
-    	}
+    	let info = {
+    		ctx,
+    		current: null,
+    		token: null,
+    		hasCatch: true,
+    		pending: create_pending_block,
+    		then: create_then_block,
+    		catch: create_catch_block,
+    		value: 3,
+    		error: 4
+    	};
+
+    	handle_promise(promise_1 = /*promise*/ ctx[0], info);
 
     	const block = {
     		c: function create() {
     			button = element("button");
-    			button.textContent = "Remove first thing";
+    			button.textContent = "Get workout data";
     			t1 = space();
-
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].c();
-    			}
-
-    			each_1_anchor = empty();
-    			add_location(button, file$1, 16, 0, 346);
+    			await_block_anchor = empty();
+    			info.block.c();
+    			add_location(button, file, 22, 0, 487);
     		},
     		l: function claim(nodes) {
-    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+    			throw new Error_1("options.hydrate only works if the component was compiled with the `hydratable: true` option");
     		},
     		m: function mount(target, anchor) {
     			insert_dev(target, button, anchor);
     			insert_dev(target, t1, anchor);
-
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].m(target, anchor);
-    			}
-
-    			insert_dev(target, each_1_anchor, anchor);
-    			current = true;
+    			insert_dev(target, await_block_anchor, anchor);
+    			info.block.m(target, info.anchor = anchor);
+    			info.mount = () => await_block_anchor.parentNode;
+    			info.anchor = await_block_anchor;
 
     			if (!mounted) {
     				dispose = listen_dev(button, "click", /*handleClick*/ ctx[1], false, false, false);
     				mounted = true;
     			}
     		},
-    		p: function update(ctx, [dirty]) {
-    			if (dirty & /*things*/ 1) {
-    				each_value = /*things*/ ctx[0];
-    				validate_each_argument(each_value);
-    				group_outros();
-    				validate_each_keys(ctx, each_value, get_each_context, get_key);
-    				each_blocks = update_keyed_each(each_blocks, dirty, get_key, 1, ctx, each_value, each_1_lookup, each_1_anchor.parentNode, outro_and_destroy_block, create_each_block, each_1_anchor, get_each_context);
-    				check_outros();
+    		p: function update(new_ctx, [dirty]) {
+    			ctx = new_ctx;
+    			info.ctx = ctx;
+
+    			if (dirty & /*promise*/ 1 && promise_1 !== (promise_1 = /*promise*/ ctx[0]) && handle_promise(promise_1, info)) ; else {
+    				update_await_block_branch(info, ctx, dirty);
     			}
     		},
-    		i: function intro(local) {
-    			if (current) return;
-
-    			for (let i = 0; i < each_value.length; i += 1) {
-    				transition_in(each_blocks[i]);
-    			}
-
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				transition_out(each_blocks[i]);
-    			}
-
-    			current = false;
-    		},
+    		i: noop,
+    		o: noop,
     		d: function destroy(detaching) {
     			if (detaching) detach_dev(button);
     			if (detaching) detach_dev(t1);
-
-    			for (let i = 0; i < each_blocks.length; i += 1) {
-    				each_blocks[i].d(detaching);
-    			}
-
-    			if (detaching) detach_dev(each_1_anchor);
+    			if (detaching) detach_dev(await_block_anchor);
+    			info.block.d(detaching);
+    			info.token = null;
+    			info = null;
     			mounted = false;
     			dispose();
-    		}
-    	};
-
-    	dispatch_dev("SvelteRegisterBlock", {
-    		block,
-    		id: create_fragment$1.name,
-    		type: "component",
-    		source: "",
-    		ctx
-    	});
-
-    	return block;
-    }
-
-    function instance$1($$self, $$props, $$invalidate) {
-    	let { $$slots: slots = {}, $$scope } = $$props;
-    	validate_slots('Each_loop', slots, []);
-
-    	let things = [
-    		{ id: 1, name: 'apple' },
-    		{ id: 2, name: 'banana' },
-    		{ id: 3, name: 'carrot' },
-    		{ id: 4, name: 'doughnut' },
-    		{ id: 5, name: 'egg' }
-    	];
-
-    	function handleClick() {
-    		$$invalidate(0, things = things.slice(1));
-    	}
-
-    	const writable_props = [];
-
-    	Object.keys($$props).forEach(key => {
-    		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Each_loop> was created with unknown prop '${key}'`);
-    	});
-
-    	$$self.$capture_state = () => ({ Thing, things, handleClick });
-
-    	$$self.$inject_state = $$props => {
-    		if ('things' in $$props) $$invalidate(0, things = $$props.things);
-    	};
-
-    	if ($$props && "$$inject" in $$props) {
-    		$$self.$inject_state($$props.$$inject);
-    	}
-
-    	return [things, handleClick];
-    }
-
-    class Each_loop extends SvelteComponentDev {
-    	constructor(options) {
-    		super(options);
-    		init(this, options, instance$1, create_fragment$1, safe_not_equal, {});
-
-    		dispatch_dev("SvelteRegisterComponent", {
-    			component: this,
-    			tagName: "Each_loop",
-    			options,
-    			id: create_fragment$1.name
-    		});
-    	}
-    }
-
-    /* src\App.svelte generated by Svelte v3.42.5 */
-    const file = "src\\App.svelte";
-
-    function create_fragment(ctx) {
-    	let main;
-    	let h1;
-    	let t1;
-    	let eachloop;
-    	let current;
-    	eachloop = new Each_loop({ props: { name: "Janne" }, $$inline: true });
-
-    	const block = {
-    		c: function create() {
-    			main = element("main");
-    			h1 = element("h1");
-    			h1.textContent = "Each loop!";
-    			t1 = space();
-    			create_component(eachloop.$$.fragment);
-    			attr_dev(h1, "class", "svelte-bp2ne3");
-    			add_location(h1, file, 28, 4, 497);
-    			attr_dev(main, "class", "svelte-bp2ne3");
-    			add_location(main, file, 27, 0, 485);
-    		},
-    		l: function claim(nodes) {
-    			throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
-    		},
-    		m: function mount(target, anchor) {
-    			insert_dev(target, main, anchor);
-    			append_dev(main, h1);
-    			append_dev(main, t1);
-    			mount_component(eachloop, main, null);
-    			current = true;
-    		},
-    		p: noop,
-    		i: function intro(local) {
-    			if (current) return;
-    			transition_in(eachloop.$$.fragment, local);
-    			current = true;
-    		},
-    		o: function outro(local) {
-    			transition_out(eachloop.$$.fragment, local);
-    			current = false;
-    		},
-    		d: function destroy(detaching) {
-    			if (detaching) detach_dev(main);
-    			destroy_component(eachloop);
     		}
     	};
 
@@ -872,17 +633,50 @@ var app = (function () {
     	return block;
     }
 
+    async function getWorkoutData() {
+    	const res = await fetch(`https://612896ae86a213001729f9c0.mockapi.io/objWithoutArrayValues`);
+    	const text = await res;
+
+    	if (res.ok) {
+    		return text.json();
+    	} else {
+    		throw new Error(text);
+    	}
+    }
+
     function instance($$self, $$props, $$invalidate) {
     	let { $$slots: slots = {}, $$scope } = $$props;
     	validate_slots('App', slots, []);
+    	let index = 0;
+    	let promise = getWorkoutData();
+
+    	function handleClick() {
+    		$$invalidate(0, promise = getWorkoutData());
+    	}
+
     	const writable_props = [];
 
     	Object.keys($$props).forEach(key => {
     		if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<App> was created with unknown prop '${key}'`);
     	});
 
-    	$$self.$capture_state = () => ({ Eachloop: Each_loop });
-    	return [];
+    	$$self.$capture_state = () => ({
+    		index,
+    		getWorkoutData,
+    		promise,
+    		handleClick
+    	});
+
+    	$$self.$inject_state = $$props => {
+    		if ('index' in $$props) index = $$props.index;
+    		if ('promise' in $$props) $$invalidate(0, promise = $$props.promise);
+    	};
+
+    	if ($$props && "$$inject" in $$props) {
+    		$$self.$inject_state($$props.$$inject);
+    	}
+
+    	return [promise, handleClick];
     }
 
     class App extends SvelteComponentDev {

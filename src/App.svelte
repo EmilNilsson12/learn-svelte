@@ -1,31 +1,32 @@
 <script>
-    import Eachloop from './components/Each-loop.svelte';
-</script>
+    let index = 0;
+    async function getWorkoutData() {
+        const res = await fetch(
+            `https://612896ae86a213001729f9c0.mockapi.io/objWithoutArrayValues`
+        );
+        const text = await res;
 
-<style>
-    main {
-        text-align: center;
-        /* padding: 1em; */
-        /* max-width: 240px; */
-        margin: 0;
-        padding: 0;
-    }
-
-    h1 {
-        color: #ff3e00;
-        text-transform: uppercase;
-        font-size: 4em;
-        font-weight: 100;
-    }
-
-    @media (min-width: 640px) {
-        main {
-            max-width: none;
+        if (res.ok) {
+            return text.json();
+        } else {
+            throw new Error(text);
         }
     }
-</style>
 
-<main>
-    <h1>Each loop!</h1>
-    <Eachloop name="Janne" />
-</main>
+    let promise = getWorkoutData();
+
+    function handleClick() {
+        promise = getWorkoutData();
+    }
+</script>
+
+<button on:click={handleClick}> Get workout data </button>
+
+<!-- replace this element -->
+{#await promise}
+    <p>Waiting...</p>
+{:then number}
+    <pre>The number is {JSON.stringify(number[0], null, 2)}</pre>
+{:catch error}
+    <p>Error was caught</p>
+{/await}
